@@ -93,30 +93,30 @@ public class PlayerController : MonoBehaviour
     }
 
     void HandleLook()
+{
+    foreach (Touch touch in Input.touches)
     {
-        if (Input.touchCount > 0)
+        if (touch.position.x > Screen.width / 2)
         {
-            Touch touch = Input.GetTouch(0);
-            if (touch.position.x > Screen.width / 2)
+            if (touch.phase == TouchPhase.Began)
             {
-                if (touch.phase == TouchPhase.Began)
-                {
-                    isTouching = true;
-                }
-                else if (touch.phase == TouchPhase.Moved && isTouching)
-                {
-                    Vector2 delta = touch.deltaPosition;
-                    float yaw = delta.x * lookSpeed * Time.deltaTime;
-                    float pitch = -delta.y * lookSpeed * Time.deltaTime;
-
-                    transform.Rotate(0, yaw, 0);
-                    playerCamera.transform.Rotate(pitch, 0, 0);
-                }
-                else if (touch.phase == TouchPhase.Ended)
-                {
-                    isTouching = false;
-                }
+                isTouching = true;
             }
+            else if (touch.phase == TouchPhase.Moved && isTouching)
+            {
+                Vector2 delta = touch.deltaPosition;
+                float yaw = delta.x * lookSpeed * Time.deltaTime;
+                float pitch = -delta.y * lookSpeed * Time.deltaTime;
+
+                transform.Rotate(0, yaw, 0);
+                playerCamera.transform.Rotate(pitch, 0, 0);
+            }
+            else if (touch.phase == TouchPhase.Ended)
+            {
+                isTouching = false;
+            }
+            break;
         }
     }
+}
 }
