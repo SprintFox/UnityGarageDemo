@@ -3,26 +3,32 @@ using UnityEngine;
 public class PlayerController : MonoBehaviour
 {
     public GameObject hintArrow;
-    
+    public GameObject dropButton;
+
     public VirtualJoystick moveJoystick;
     public float moveSpeed = 5f;
     public float gravity = -9.81f;
     private Vector3 velocity;
     public float lookSpeed = 2f;
+    private float verticalRotation = 0f;
+    public float minPitch = -80f;
+    public float maxPitch = 80f;
     private CharacterController controller;
     private Camera playerCamera;
 
     private bool isTouching = false;
 
     public Transform handTransform;
+
+    public float throwForce = 1f;
     private GameObject heldObject = null;
-    void Start()
+    private void Start()
     {
         controller = GetComponent<CharacterController>();
         playerCamera = Camera.main;
     }
 
-    void Update()
+    private void Update()
     {
         MovePlayer();
         HandleLook();
@@ -41,21 +47,11 @@ public class PlayerController : MonoBehaviour
                 {
                     PickUpObject(hit.collider.gameObject);
                 }
-                else if (hit.collider.CompareTag("ObjectsStorage") && heldObject != null)
-                {
-                    TrunkController trunkController = hit.collider.gameObject.GetComponent<TrunkController>();
-                    if (trunkController.storagePlaces.Count > 0) {
-                        Transform newPost = trunkController.storagePlaces[0];
-                        DropObject(newPost);
-                        trunkController.storagePlaces.Remove(trunkController.storagePlaces[0]);
-                    }
-                    
-                }
             }
         }
     }
 
-    void PickUpObject(GameObject obj)
+    private void PickUpObject(GameObject obj)
     {
         heldObject = obj;
         hintArrow.SetActive(true);
@@ -63,60 +59,76 @@ public class PlayerController : MonoBehaviour
         heldObject.transform.SetParent(handTransform);
         heldObject.transform.localPosition = Vector3.zero;
         heldObject.transform.localRotation = Quaternion.identity;
+
+        Rigidbody rb = heldObject.GetComponent<Rigidbody>();
+        Collider col = heldObject.GetComponent<Collider>();
+
+        col.enabled = false;
+        rb.isKinematic = true;
+
+        dropButton.SetActive(true);
     }
 
-    void DropObject(Transform dropPosition)
+    public void DropObject()
     {
         if (heldObject)
         {
             heldObject.transform.SetParent(null);
-            heldObject.GetComponent<Collider>().enabled = false;
 
-            heldObject.transform.position = dropPosition.position;
-            heldObject.transform.eulerAngles = dropPosition.eulerAngles;
+            Rigidbody rb = heldObject.GetComponent<Rigidbody>();
+            Collider col = heldObject.GetComponent<Collider>();
+
+            col.enabled = true;
+            rb.isKinematic = false;
+
+            Vector3 throwDirection = Camera.main.transform.forward;
+
+            rb.AddForce(throwDirection * throwForce, ForceMode.Impulse);
 
             hintArrow.SetActive(false);
             heldObject = null;
+
+            dropButton.SetActive(false);
         }
     }
 
-    void MovePlayer()
+    private void MovePlayer()
     {
-        if(controller.isGrounded && velocity.y < 0)
-            velocity.y = 0;
-
         Vector3 move = transform.right * moveJoystick.Horizontal + transform.forward * moveJoystick.Vertical;
         controller.Move(move * moveSpeed * Time.deltaTime);
-        
+
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
     }
 
-    void HandleLook()
-{
-    foreach (Touch touch in Input.touches)
+    private void HandleLook()
     {
-        if (touch.position.x > Screen.width / 2)
+        foreach (Touch touch in Input.touches)
         {
-            if (touch.phase == TouchPhase.Began)
+            if (touch.position.x > Screen.width / 2)
             {
-                isTouching = true;
-            }
-            else if (touch.phase == TouchPhase.Moved && isTouching)
-            {
-                Vector2 delta = touch.deltaPosition;
-                float yaw = delta.x * lookSpeed * Time.deltaTime;
-                float pitch = -delta.y * lookSpeed * Time.deltaTime;
+                if (touch.phase == TouchPhase.Began)
+                {
+                    isTouching = true;
+                }
+                else if (touch.phase == TouchPhase.Moved && isTouching)
+                {
+                    Vector2 delta = touch.deltaPosition;
+                    float yaw = delta.x * lookSpeed * Time.deltaTime;
+                    float pitch = -delta.y * lookSpeed * Time.deltaTime;
 
-                transform.Rotate(0, yaw, 0);
-                playerCamera.transform.Rotate(pitch, 0, 0);
+                    transform.Rotate(0, yaw, 0);
+
+                    verticalRotation = Mathf.Clamp(verticalRotation + pitch, minPitch, maxPitch);
+
+                    playerCamera.transform.localRotation = Quaternion.Euler(verticalRotation, 0, 0);
+                }
+                else if (touch.phase == TouchPhase.Ended)
+                {
+                    isTouching = false;
+                }
+                break;
             }
-            else if (touch.phase == TouchPhase.Ended)
-            {
-                isTouching = false;
-            }
-            break;
         }
     }
-}
 }
